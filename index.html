@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>wristBud - Smart Health Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                primary: '#4F46E5', 
+                secondary: '#3730A3', 
+                light: '#C7D2FE', 
+                extralight: '#E0E7FF',
+              },
+              sidebar: '#3730A3', 
+              'sidebar-active': '#4F46E5',
+              'sidebar-hover': '#4338CA', 
+              'iconbg-purple': 'rgba(167, 139, 250, 0.2)', 
+              'iconbg-green': 'rgba(52, 211, 153, 0.2)',  
+              'iconbg-blue': 'rgba(96, 165, 250, 0.2)',   
+            }
+          }
+        }
+      }
+    </script>
+    
+    <style type="text/tailwindcss">
+      body {
+        @apply font-sans antialiased bg-slate-100 text-gray-900; /* Changed bg to slate-100 for closer match */
+      }
+      .chart-container {
+        @apply relative w-full h-64 md:h-72 lg:h-80; /* Responsive height for charts */
+      }
+      .d3-chart-container svg {
+        @apply w-full h-full;
+      }
+      /* Custom scrollbar (optional, for aesthetics) */
+      ::-webkit-scrollbar {
+        @apply w-2 h-2;
+      }
+      ::-webkit-scrollbar-track {
+        @apply bg-gray-100;
+      }
+      ::-webkit-scrollbar-thumb {
+        @apply bg-gray-400 rounded;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        @apply bg-gray-500;
+      }
+    </style>
+
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.6.2",
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "chart.js": "https://esm.sh/chart.js@^4.4.3/auto",
+    "d3": "https://esm.sh/d3@^7.9.0",
+    "@/App": "/App.tsx",
+    "recharts": "https://esm.sh/recharts@^2.15.3",
+    "chart.js/": "https://esm.sh/chart.js@^4.4.9/"
+  }
+}
+</script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

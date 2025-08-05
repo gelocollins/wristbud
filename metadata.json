@@ -1,0 +1,5 @@
+{
+  "name": "WristCare",
+  "description": "WristCare: Admin dashboard for managing and monitoring health data from smartwatches. Includes a public landing page with FAQs.",
+  "requestFramePermissions": []
+}

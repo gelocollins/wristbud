@@ -3,7 +3,8 @@ const express = require("express"),
   bcrypt = require("bcrypt"),
   jwt = require("jsonwebtoken"),
   cors = require("cors"),
-  bodyParser = require("body-parser");
+  bodyParser = require("body-parser"),
+  os = require("os");
 
 const app = express(),
   PORT = 5000,
@@ -718,7 +719,22 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, HOST, () => {
+  // Get all LAN IPv4 addresses
+  const interfaces = os.networkInterfaces();
+  const lanIps = [];
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        lanIps.push(iface.address);
+      }
+    }
+  }
   console.log(`🚀 WristBud Express Server running on ${HOST}:${PORT}`);
+  lanIps.forEach(ip => {
+    console.log(`🌐 LAN API:   http://${ip}:${PORT}/api/`);
+    console.log(`🌐 LAN Health: http://${ip}:${PORT}/health`);
+    console.log(`🌐 LAN Admin:  http://${ip}:${PORT}/api/admin/`);
+  });
   console.log(`📊 Health API: http://localhost:${PORT}/api/`);
   console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
   console.log(`👨‍💼 Admin API: http://localhost:${PORT}/api/admin/`);

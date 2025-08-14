@@ -371,7 +371,7 @@ app.get("/api/alerts", authenticateToken, async (req, res) => {
 app.post("/api/demo/critical", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { location } = req.body;
+    const { location_latitude, location_longitude, location_address } = req.body;
     
     const demoData = {
       heart_rate: 180 + Math.floor(20 * Math.random()),
@@ -385,7 +385,7 @@ app.post("/api/demo/critical", authenticateToken, async (req, res) => {
     };
     
     await pool.execute(
-      "INSERT INTO health_data (user_id, heart_rate, systolic, diastolic, spo2, temperature, status, activity, context_tag, location_address, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+      "INSERT INTO health_data (user_id, heart_rate, systolic, diastolic, spo2, temperature, status, activity, context_tag, location_latitude, location_longitude, location_address, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
       [
         userId,
         demoData.heart_rate,
@@ -396,7 +396,9 @@ app.post("/api/demo/critical", authenticateToken, async (req, res) => {
         demoData.status,
         demoData.activity,
         demoData.context_tag,
-        location || "Demo Location - Critical Emergency",
+        location_latitude || null,
+        location_longitude || null,
+        location_address || "Demo Location - Critical Emergency",
       ]
     );
     res.json({ message: "Critical demo data generated", data: demoData });
@@ -409,7 +411,7 @@ app.post("/api/demo/critical", authenticateToken, async (req, res) => {
 app.post("/api/demo/abnormal", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { location } = req.body;
+    const { location_latitude, location_longitude, location_address } = req.body;
     
     const demoData = {
       heart_rate:
@@ -429,7 +431,7 @@ app.post("/api/demo/abnormal", authenticateToken, async (req, res) => {
     };
     
     await pool.execute(
-      "INSERT INTO health_data (user_id, heart_rate, systolic, diastolic, spo2, temperature, status, activity, context_tag, location_address, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+      "INSERT INTO health_data (user_id, heart_rate, systolic, diastolic, spo2, temperature, status, activity, context_tag, location_latitude, location_longitude, location_address, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
       [
         userId,
         demoData.heart_rate,
@@ -440,7 +442,9 @@ app.post("/api/demo/abnormal", authenticateToken, async (req, res) => {
         demoData.status,
         demoData.activity,
         demoData.context_tag,
-        location || "Demo Location - Abnormal Values",
+        location_latitude || null,
+        location_longitude || null,
+        location_address || "Demo Location - Abnormal Values",
       ]
     );
     res.json({ message: "Abnormal demo data generated", data: demoData });
@@ -453,7 +457,7 @@ app.post("/api/demo/abnormal", authenticateToken, async (req, res) => {
 app.post("/api/demo/normal", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { location } = req.body;
+    const { location_latitude, location_longitude, location_address } = req.body;
     
     const demoData = {
       heart_rate: 60 + Math.floor(40 * Math.random()), 
@@ -467,7 +471,7 @@ app.post("/api/demo/normal", authenticateToken, async (req, res) => {
     };
     
     await pool.execute(
-      "INSERT INTO health_data (user_id, heart_rate, systolic, diastolic, spo2, temperature, status, activity, context_tag, location_address, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+      "INSERT INTO health_data (user_id, heart_rate, systolic, diastolic, spo2, temperature, status, activity, context_tag, location_latitude, location_longitude, location_address, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
       [
         userId,
         demoData.heart_rate,
@@ -478,7 +482,9 @@ app.post("/api/demo/normal", authenticateToken, async (req, res) => {
         demoData.status,
         demoData.activity,
         demoData.context_tag,
-        location || "Demo Location - Normal Activity",
+        location_latitude || null,
+        location_longitude || null,
+        location_address || "Demo Location - Normal Activity",
       ]
     );
     res.json({ message: "Normal demo data generated", data: demoData });

@@ -6,8 +6,14 @@ export default defineConfig(({ mode }) => {
     
     return {
     server: {
-      host: '127.0.0.1',
-      port: 5173
+      host: '0.0.0.0', 
+      port: 5173,
+      cors: {
+        origin: '*', 
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        credentials: false
+      }
     },
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),

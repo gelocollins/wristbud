@@ -689,14 +689,12 @@ app.get("/api/admin/user/:userId/alerts", async (req, res) => {
   }
 });
 
-// --- AUTO CLEANUP: Delete old health data for all users (keep only today) ---
 const MS_PER_HOUR = 60 * 60 * 1000;
 setInterval(async () => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().slice(0, 10); // 'YYYY-MM-DD'
-    // Delete all health_data not from today
+    const todayStr = today.toISOString().slice(0, 10);
     const [result] = await pool.execute(
       "DELETE FROM health_data WHERE DATE(recorded_at) < ?",
       [todayStr]
@@ -707,7 +705,7 @@ setInterval(async () => {
   } catch (err) {
     console.error('Auto-cleanup error:', err);
   }
-}, MS_PER_HOUR); // Run every hour
+}, MS_PER_HOUR); 
 
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
@@ -719,7 +717,6 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, HOST, () => {
-  // Get all LAN IPv4 addresses
   const interfaces = os.networkInterfaces();
   const lanIps = [];
   for (const name of Object.keys(interfaces)) {

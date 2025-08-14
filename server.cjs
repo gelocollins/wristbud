@@ -490,30 +490,35 @@ app.post("/api/demo/normal", authenticateToken, async (req, res) => {
 
 app.get("/api/critical-users", async (req, res) => {
   try {
+    // Get latest health_data for each user
     const [criticalUsers] = await pool.execute(`
-      SELECT DISTINCT 
-          u.id as user_id,
-          u.name,
-          u.email,
-          u.emergency_contact,
-          u.emergency_phone,
-          a.id as alert_id,
-          a.message as alert_message,
-          a.location_address,
-          a.created_at,
-          hd.heart_rate,
-          CONCAT(hd.systolic, '/', hd.diastolic) as blood_pressure,
-          hd.spo2,
-          hd.temperature
+      SELECT u.id as user_id,
+             u.name,
+             u.email,
+             u.emergency_contact,
+             u.emergency_phone,
+             hd.id as health_data_id,
+             hd.heart_rate,
+             CONCAT(hd.systolic, '/', hd.diastolic) as blood_pressure,
+             hd.spo2,
+             hd.temperature,
+             hd.status,
+             hd.recorded_at,
+             hd.context_tag,
+             hd.activity
       FROM users u
-      INNER JOIN alerts a ON u.id = a.user_id
-      LEFT JOIN health_data hd ON u.id = hd.user_id
-      WHERE a.alert_type = 'emergency' 
-      AND a.severity = 'critical'
-      AND a.created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-      AND u.emergency_phone IS NOT NULL
-      AND u.emergency_phone != ''
-      ORDER BY a.created_at DESC
+      INNER JOIN (
+        SELECT h1.* FROM health_data h1
+        INNER JOIN (
+          SELECT user_id, MAX(recorded_at) as max_time
+          FROM health_data
+          GROUP BY user_id
+        ) h2 ON h1.user_id = h2.user_id AND h1.recorded_at = h2.max_time
+      ) hd ON u.id = hd.user_id
+      WHERE hd.status = 'critical'
+        AND u.emergency_phone IS NOT NULL
+        AND u.emergency_phone != ''
+      ORDER BY hd.recorded_at DESC
     `);
     res.json({
       users: criticalUsers,

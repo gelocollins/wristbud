@@ -12,7 +12,7 @@ const MenuIcon = (props: { className?: string }) => ( // Simple Hamburger Icon
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
   </svg>
 );
-
+// Tsuma Netori: Ryoujoku Rinne 1
 
 const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar }) => {
   const appContext = useContext(GlobalAppContext);
@@ -21,7 +21,6 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar }) => {
     <header className="bg-white shadow-sm sticky top-0 z-10">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Left side: Hamburger and Page Title */}
           <div className="flex items-center">
             <button
               onClick={onToggleSidebar}
@@ -33,7 +32,6 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar }) => {
             <h1 className="text-xl font-semibold text-gray-800">{pageTitle}</h1>
           </div>
 
-          {/* Right side: Status and Notifications */}
           <div className="flex items-center space-x-4">
             <div className="hidden md:block text-sm text-gray-600">
               Last updated: 
@@ -61,7 +59,7 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar }) => {
                 */}
               </button>
               {/* Dropdown (basic structure, needs state management for full interactivity) */}
-              {/* 
+              
               <div className="absolute right-0 mt-2 w-80 origin-top-right bg-white border border-gray-200 divide-y divide-gray-100 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none hidden">
                 <div className="px-4 py-3">
                   <p className="text-sm font-medium text-gray-900">Notifications</p>
@@ -70,7 +68,7 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar }) => {
                   <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">No new notifications</a>
                 </div>
               </div>
-              */}
+             
             </div>
           </div>
         </div>

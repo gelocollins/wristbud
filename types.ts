@@ -38,10 +38,9 @@ export interface Activity {
 
 export interface UserProfile {
   name: string;
-  age: number;
   email: string;
-  weight?: number; // kg
-  height?: number; // cm
+  emergency_contact?: string;
+  emergency_phone?: string;
 }
 
 export interface FAQItem {

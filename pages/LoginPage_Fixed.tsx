@@ -13,44 +13,23 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { loginAdmin, loginUser, isAdminLoggedIn, isUserLoggedIn, userRole } = appContext || {};
+  const { loginAdmin, isAdminLoggedIn } = appContext || {};
   
-  const from = location.state?.from?.pathname || (userType === 'admin' ? "/admin/dashboard" : "/user/dashboard");
+  const from = location.state?.from?.pathname || (userType === 'admin' ? "/admin/dashboard" : "/admin/dashboard");
 
   useEffect(() => {
-    if (isAdminLoggedIn && userRole === 'admin') {
+    if (isAdminLoggedIn) {
       navigate("/admin/dashboard", { replace: true });
-    } else if (isUserLoggedIn && userRole === 'user') {
-      navigate("/user/dashboard", { replace: true });
     }
-  }, [isAdminLoggedIn, isUserLoggedIn, userRole, navigate]);
+  }, [isAdminLoggedIn, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    // Shortcut for sample admin credentials
-    if (userType === 'admin' && email === 'admin@admin.com' && password === 'admin12345') {
-      localStorage.setItem('authToken', '1234');
-      localStorage.setItem('userEmail', 'admin');
-      localStorage.setItem('userType', 'admin');
-      localStorage.setItem('userData', JSON.stringify({
-        id: 1,
-        name: 'Admin',
-        email: 'admin'
-      }));
-      if (loginAdmin) {
-        loginAdmin(() => navigate("/admin/dashboard", { replace: true }));
-      } else {
-        navigate("/admin/dashboard", { replace: true });
-      }
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const response = await fetch('http://localhost:5000/api/login', {
+      const response = await fetch('https://nocollateralloan.org/login.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -58,36 +37,36 @@ const LoginPage: React.FC = () => {
         },
         body: JSON.stringify({
           email: email,
-          password: password
+          password: password,
+          userType: userType,
+          app: 'wristbud'
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok && data.message === 'Login successful') {
+      if (response.ok && data.success) {
+        // Store authentication token and user info
         if (data.token) {
           localStorage.setItem('authToken', data.token);
-          localStorage.setItem('userEmail', data.email);
+          localStorage.setItem('userEmail', email);
           localStorage.setItem('userType', userType);
-          localStorage.setItem('userData', JSON.stringify({
-            id: data.user_id,
-            name: data.name,
-            email: data.email
-          }));
+          localStorage.setItem('userData', JSON.stringify(data.user));
         }
-        if (userType === 'admin' && loginAdmin) {
+        
+        // For now, both user types go to admin dashboard since we don't have separate user dashboard
+        if (loginAdmin) {
           loginAdmin(() => navigate("/admin/dashboard", { replace: true }));
-        } else if (userType === 'user' && loginUser) {
-          loginUser(() => navigate("/user/dashboard", { replace: true }));
         } else {
-          const targetPath = userType === 'admin' ? "/admin/dashboard" : "/user/dashboard";
-          navigate(targetPath, { replace: true });
+          navigate("/admin/dashboard", { replace: true });
         }
+        
       } else {
-        setError(data.error || 'Invalid email or password. Please try again.');
+        setError(data.message || 'Invalid email or password. Please try again.');
       }
     } catch (error) {
-      setError('Connection error. Please make sure the server is running on localhost:5000.');
+      console.error('Login error:', error);
+      setError('Connection error. Please check your internet connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -234,19 +213,12 @@ const LoginPage: React.FC = () => {
             </Link>
           </div>
           
-          {/* Enhanced Debug info */}
-          <div className="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600">
-            <p><strong>🔧 Debug Info:</strong></p>
-            <p>API URL: http://localhost:5000/api/login</p>
+          {/* Debug info - remove in production */}
+          <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
+            <p><strong>Debug Info:</strong></p>
             <p>User Type: {userType}</p>
             <p>Is Admin Logged In: {isAdminLoggedIn ? 'Yes' : 'No'}</p>
-            <p>Is User Logged In: {isUserLoggedIn ? 'Yes' : 'No'}</p>
-            <p>Current Role: {userRole || 'None'}</p>
-            <p>Target Route: {userType === 'admin' ? '/admin/dashboard' : '/user/dashboard'}</p>
-            <p>Test Credentials: test@test.com / test123</p>
-            <p>Admin Credentials: admin / admin</p>
-            <p>Make sure server.js is running: npm run server</p>
-            <p>Check browser console for detailed logs</p>
+            <p>Test Credentials: admin@wristbud.com / admin123</p>
           </div>
         </div>
         

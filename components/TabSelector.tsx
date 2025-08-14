@@ -1,10 +1,9 @@
 import React from 'react';
-import { DashboardTab } from '../types';
 
 interface TabSelectorProps {
-  tabs: { name: DashboardTab, icon: (props: { className?: string }) => React.ReactNode }[];
-  selectedTab: DashboardTab;
-  onSelectTab: (tab: DashboardTab) => void;
+  tabs: { name: string; icon: (props: { className?: string }) => React.ReactNode }[];
+  selectedTab: string;
+  onSelectTab: (tab: string) => void;
 }
 
 const TabSelector: React.FC<TabSelectorProps> = ({ tabs, selectedTab, onSelectTab }) => {

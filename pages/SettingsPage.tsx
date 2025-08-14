@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { GlobalAppContext } from '../App';
 import { CogIcon } from '../constants'; // Using SVG icons
 
@@ -25,23 +25,82 @@ const SettingsPage: React.FC = () => {
     units: 'metric',
     theme: 'system',
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Fetch settings from server on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        const res = await fetch('http://localhost:5000/api/settings', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSettings(data.settings);
+        } else {
+          setError('Failed to fetch settings');
+        }
+      } catch (err) {
+        setError('Connection error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // Update settings in server
+  const updateSettings = async (newSettings: AppSettings) => {
+    setLoading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+      const res = await fetch('http://localhost:5000/api/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(newSettings),
+      });
+      if (!res.ok) setError('Failed to update settings');
+    } catch (err) {
+      setError('Connection error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleNotificationChange = (key: keyof AppSettings['notifications']) => {
-    setSettings(prev => ({
-      ...prev,
-      notifications: { ...prev.notifications, [key]: !prev.notifications[key] }
-    }));
+    const newSettings = {
+      ...settings,
+      notifications: { ...settings.notifications, [key]: !settings.notifications[key] }
+    };
+    setSettings(newSettings);
+    updateSettings(newSettings);
   };
 
   const handleUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSettings(prev => ({ ...prev, units: e.target.value as 'metric' | 'imperial' }));
+    const newSettings = { ...settings, units: e.target.value as 'metric' | 'imperial' };
+    setSettings(newSettings);
+    updateSettings(newSettings);
   };
   
   const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newTheme = e.target.value as AppSettings['theme'];
-    setSettings(prev => ({ ...prev, theme: newTheme }));
-    // Note: Actual theme changing (light/dark) would require more setup with Tailwind's dark mode.
-    // For this example, we're just storing the preference.
+    const newSettings = { ...settings, theme: newTheme };
+    setSettings(newSettings);
+    updateSettings(newSettings);
     if (newTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -97,9 +156,10 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto">
+        {loading && <p className="text-center text-gray-500">Loading...</p>}
+        {error && <p className="text-center text-red-500">{error}</p>}
         <SettingSection title="Notification Preferences">
-            <ToggleSwitch id="emailNotif" label="Email Notifications" enabled={settings.notifications.email} onChange={() => handleNotificationChange('email')} />
-            <ToggleSwitch id="pushNotif" label="Push Notifications (App)" enabled={settings.notifications.push} onChange={() => handleNotificationChange('push')} />
+            <ToggleSwitch id="pushNotif" label="Push Notifications" enabled={settings.notifications.push} onChange={() => handleNotificationChange('push')} />
             <ToggleSwitch id="healthAlertsNotif" label="Critical System Alerts" enabled={settings.notifications.healthAlerts} onChange={() => handleNotificationChange('healthAlerts')} />
         </SettingSection>
 
@@ -141,10 +201,7 @@ const SettingsPage: React.FC = () => {
                     onClick={() => logoutAdmin()}
                     className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                 >
-                    Log Out Admin
-                </button>
-                <button className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
-                    Check for System Updates
+                    Log Out
                 </button>
             </div>
         </SettingSection>

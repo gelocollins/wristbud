@@ -1,38 +1,18 @@
 import React, { useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { GlobalAppContext } from '../App';
-import { ADMIN_SIDEBAR_NAV_ITEMS, WristCareLogoIcon, BoltIcon, LogoutIcon, UserCircleIcon, HomeIcon, UserCircleIcon as ProfileIcon, CogIcon } from '../constants';
+import { ADMIN_SIDEBAR_NAV_ITEMS, WristCareLogoIcon, BoltIcon, LogoutIcon, UserCircleIcon } from '../constants';
 
 interface SidebarProps {
   isOpen: boolean;
   setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  isUserMode?: boolean;
 }
 
-// User navigation items
-const USER_SIDEBAR_NAV_ITEMS = [
-  { name: 'My Dashboard', path: '/user/dashboard', icon: HomeIcon },
-];
-
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isUserMode = false }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const appContext = useContext(GlobalAppContext);
   if (!appContext) return null;
   
-  const { 
-    currentUserProfile, 
-    isDeviceConnected, 
-    toggleDeviceConnection, 
-    logoutAdmin, 
-    logoutUser,
-    userRole 
-  } = appContext;
-
-  const navItems = isUserMode
-    ? USER_SIDEBAR_NAV_ITEMS
-    : ADMIN_SIDEBAR_NAV_ITEMS;
-
-  const dashboardPath = isUserMode ? '/user/dashboard' : '/admin/dashboard';
-  const logoutFunction = isUserMode ? logoutUser : logoutAdmin;
+  const { currentUserProfile, isDeviceConnected, toggleDeviceConnection, logoutAdmin } = appContext;
 
   return (
     <>
@@ -44,7 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isUserMode = false
                    bg-sidebar text-indigo-100 transform transition-transform duration-300 ease-in-out 
                    md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <Link to={dashboardPath} className="flex items-center px-2 text-white hover:text-brand-light transition-colors">
+        <Link to="/admin/dashboard" className="flex items-center px-2 text-white hover:text-brand-light transition-colors">
           <WristCareLogoIcon className="w-8 h-8 mr-2" />
           <span className="text-2xl font-semibold">WristBud</span>
         </Link>
@@ -66,15 +46,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isUserMode = false
             </p>
             <div className="mt-2 space-y-1">
               <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                userRole === 'admin' ? 'bg-purple-500 text-white' : 'bg-blue-500 text-white'
-              }`}>
-                {userRole === 'admin' ? '👨‍💼 Administrator' : '👤 User'}
-              </span>
-              <br />
-              <span className={`inline-block px-2 py-1 text-xs rounded-full ${
                 isDeviceConnected ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
               }`}>
-                {isDeviceConnected ? '🟢 Device Connected' : '🔴 Device Disconnected'}
+                {isDeviceConnected ? '🟢 System Active' : '🔴 System Inactive'}
               </span>
             </div>
           </div>
@@ -84,11 +58,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isUserMode = false
         <div className="px-2 space-y-3">
           <div className="text-center">
             <p className="text-sm text-indigo-300 mb-2">
-              Status: 
+              Device Status: 
               <span className={`ml-1 font-semibold ${isDeviceConnected ? 'text-green-400' : 'text-red-400'}`}>
                 {isDeviceConnected ? 'Connected' : 'Disconnected'}
               </span>
             </p>
+            <button
+                onClick={toggleDeviceConnection}
+                className={`w-full flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md
+                            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-sidebar focus:ring-brand-primary
+                            transition-colors duration-200
+                            ${isDeviceConnected 
+                                ? 'bg-red-600 hover:bg-red-500 text-white' 
+                                : 'bg-green-600 hover:bg-green-500 text-white'}`}
+            >
+                <BoltIcon className="w-5 h-5 mr-2" />
+                {isDeviceConnected ? 'Disconnect Device' : 'Connect Device'}
+            </button>
           </div>
         </div>
 
@@ -96,19 +82,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isUserMode = false
         <nav className="flex-1 space-y-2">
           <div className="px-2 mb-2">
             <h3 className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
-              {isUserMode ? 'Personal Dashboard' : 'Admin Dashboard'}
+              Dashboard
             </h3>
           </div>
-          {navItems.map((item) => (
-            <Link
+          {ADMIN_SIDEBAR_NAV_ITEMS.map((item) => (
+            <NavLink
               key={item.name}
               to={item.path}
-              onClick={() => setIsOpen(false)}
-              className="flex items-center px-3 py-2.5 rounded-lg transition-colors duration-200 transform hover:bg-sidebar-hover hover:text-white text-indigo-200"
+              onClick={() => setIsOpen(false)} // Close sidebar on mobile nav click
+              className={({ isActive }) =>
+                `flex items-center px-3 py-2.5 rounded-lg transition-colors duration-200 transform hover:bg-sidebar-hover hover:text-white ${
+                  isActive ? 'bg-sidebar-active text-white font-medium shadow-lg' : 'text-indigo-200'
+                }`
+              }
             >
               <item.icon className="w-5 h-5" />
               <span className="mx-4 text-sm">{item.name}</span>
-            </Link>
+            </NavLink>
           ))}
         </nav>
 
@@ -117,9 +107,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isUserMode = false
           {/* Quick Stats */}
           <div className="px-2 py-3 bg-indigo-800 bg-opacity-50 rounded-lg">
             <div className="text-center">
-              <p className="text-xs text-indigo-300 mb-1">
-                {isUserMode ? 'Personal Session' : 'Admin Session'}
-              </p>
+              <p className="text-xs text-indigo-300 mb-1">Session Status</p>
               <p className="text-sm font-medium text-white">
                 {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
               </p>
@@ -128,7 +116,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isUserMode = false
           
           {/* Logout Button */}
           <button
-            onClick={() => logoutFunction && logoutFunction()}
+            onClick={() => logoutAdmin()}
             className="w-full flex items-center px-3 py-2.5 text-indigo-200 rounded-lg transition-colors duration-200 transform hover:bg-red-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
           >
             <LogoutIcon className="w-5 h-5" />
@@ -136,7 +124,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isUserMode = false
           </button>
           
           <p className="text-xs text-center text-indigo-400">
-            &copy; {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+            &copy; {new Date().getFullYear()} WristBud.
           </p>
         </div>
       </aside>

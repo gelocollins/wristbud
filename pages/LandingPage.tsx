@@ -55,7 +55,7 @@ const LandingPage: React.FC = () => {
                 className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
               >
                 <LoginIcon className="w-5 h-5 mr-2 -ml-1" />
-                Admin Login
+                Login
               </Link>
             </div>
             <div className="md:hidden">
@@ -86,7 +86,7 @@ const LandingPage: React.FC = () => {
                     to="/login"
                     className="block w-full px-5 py-3 text-center font-medium text-brand-primary bg-gray-100 hover:bg-gray-200 rounded-md"
                 >
-                    Admin Login
+                    Login
                 </Link>
                 </div>
             </div>

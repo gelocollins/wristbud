@@ -6,44 +6,29 @@ import { GlobalAppContext } from '../../App';
 import Chart from 'chart.js/auto';
 import { ChartDataPoint } from '../../types';
 
-const generateMockTempData = (period: 'Today' | 'Week' | 'Month'): ChartDataPoint[] => {
-  const data: ChartDataPoint[] = [];
-  const now = new Date();
-  let points = 0;
-  
-  if (period === 'Today') {
-    points = 24; 
-    for (let i = 0; i < points; i++) {
-      const time = new Date(now.getTime() - (points - 1 - i) * 60 * 60 * 1000);
-      data.push({
-        time: time.toLocaleTimeString([], { hour: 'numeric', hour12: true }),
-        value: parseFloat((36.5 + (Math.random() - 0.5) * 0.8).toFixed(1)), 
-      });
-    }
-    if (data.length > 0) data[data.length-1].time = "Now";
-  } else if (period === 'Week') {
-    points = 7; 
-    for (let i = 0; i < points; i++) {
-      const date = new Date(now.getTime() - (points - 1 - i) * 24 * 60 * 60 * 1000);
-      data.push({
-        time: date.toLocaleDateString([], { weekday: 'short' }),
-        value: parseFloat((36.5 + (Math.random() - 0.5) * 0.6).toFixed(1)),
-      });
-    }
-  } else { 
-     for (let i = 0; i < 4; i++) { 
-       const date = new Date(now.getFullYear(), now.getMonth(), (i*7) + 1); 
-      data.push({
-        time: `Week ${i+1}`,
-        value: parseFloat((36.5 + (Math.random() - 0.5) * 0.5).toFixed(1)),
-      });
-    }
-  }
-  return data;
-};
+interface UserHealthData {
+  user_id: number;
+  name: string;
+  body_temperature?: number;
+  last_updated: string;
+}
 
+interface HealthHistory {
+  body_temperature?: number;
+  last_updated: string;
+}
 
-const TemperatureView: React.FC = () => {
+interface TemperatureViewProps {
+  currentUserOnly?: boolean;
+  userHealthData?: UserHealthData | null;
+  healthHistory?: HealthHistory[];
+}
+
+const TemperatureView: React.FC<TemperatureViewProps> = ({ 
+  currentUserOnly = false, 
+  userHealthData = null,
+  healthHistory = []
+}) => {
   const appContext = useContext(GlobalAppContext);
   const { isDeviceConnected } = appContext || { isDeviceConnected: false };
   const [timeRange, setTimeRange] = useState<'Today' | 'Week' | 'Month'>('Today');
@@ -51,18 +36,131 @@ const TemperatureView: React.FC = () => {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
 
-  const chartData = generateMockTempData(timeRange);
-  const currentTemp = isDeviceConnected ? (chartData.length > 0 ? chartData[chartData.length-1].value : 36.8) : '--';
-  const averageTemp = isDeviceConnected && chartData.length > 0 ? (chartData.reduce((sum, item) => sum + item.value, 0) / chartData.length).toFixed(1) : '--';
-  const dailyVariation = isDeviceConnected && chartData.length > 0 ? (Math.max(...chartData.map(d => d.value)) - Math.min(...chartData.map(d => d.value))).toFixed(1) : '--';
+  // Generate chart data ONLY from real database data
+  const generateChartData = (period: 'Today' | 'Week' | 'Month'): ChartDataPoint[] => {
+    if (!isDeviceConnected || !healthHistory || healthHistory.length === 0) {
+      return [];
+    }
 
- useEffect(() => {
-    if (!chartRef.current || !isDeviceConnected) {
-        if (chartInstanceRef.current) {
-            chartInstanceRef.current.destroy();
-            chartInstanceRef.current = null;
+    // Filter health history for temperature data
+    const tempData = healthHistory.filter(h => h.body_temperature && h.body_temperature > 0);
+    
+    if (tempData.length === 0) {
+      return [];
+    }
+
+    const data: ChartDataPoint[] = [];
+    
+    if (period === 'Today') {
+      // Use actual temperature readings from today
+      tempData.forEach((reading, index) => {
+        const time = new Date(reading.last_updated);
+        data.push({
+          time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          value: reading.body_temperature!,
+        });
+      });
+      
+      // If we have current data, mark the latest as "Now"
+      if (data.length > 0 && userHealthData?.body_temperature) {
+        data[data.length - 1].time = "Now";
+      }
+    } else if (period === 'Week') {
+      // Group by day and calculate daily averages
+      const dailyData: { [key: string]: number[] } = {};
+      
+      tempData.forEach(reading => {
+        const date = new Date(reading.last_updated);
+        const dayKey = date.toLocaleDateString([], { weekday: 'short' });
+        
+        if (!dailyData[dayKey]) {
+          dailyData[dayKey] = [];
         }
-        return;
+        dailyData[dayKey].push(reading.body_temperature!);
+      });
+      
+      // Calculate averages for each day
+      Object.keys(dailyData).forEach(day => {
+        const average = dailyData[day].reduce((sum, temp) => sum + temp, 0) / dailyData[day].length;
+        data.push({
+          time: day,
+          value: Math.round(average * 10) / 10, // Round to 1 decimal
+        });
+      });
+    } else {
+      // Group by week and calculate weekly averages
+      const weeklyData: { [key: string]: number[] } = {};
+      
+      tempData.forEach(reading => {
+        const date = new Date(reading.last_updated);
+        const weekNumber = Math.ceil(date.getDate() / 7);
+        const weekKey = `Week ${weekNumber}`;
+        
+        if (!weeklyData[weekKey]) {
+          weeklyData[weekKey] = [];
+        }
+        weeklyData[weekKey].push(reading.body_temperature!);
+      });
+      
+      // Calculate averages for each week
+      Object.keys(weeklyData).forEach(week => {
+        const average = weeklyData[week].reduce((sum, temp) => sum + temp, 0) / weeklyData[week].length;
+        data.push({
+          time: week,
+          value: Math.round(average * 10) / 10, // Round to 1 decimal
+        });
+      });
+    }
+    
+    return data.sort((a, b) => {
+      if (period === 'Today') {
+        return a.time === "Now" ? 1 : b.time === "Now" ? -1 : 0;
+      }
+      return 0;
+    });
+  };
+
+  const chartData = generateChartData(timeRange);
+  
+  // Calculate stats from user's ACTUAL data only
+  const currentTemp = isDeviceConnected && userHealthData?.body_temperature 
+    ? userHealthData.body_temperature
+    : null;
+  
+  // Calculate average from historical data
+  const averageTemp = isDeviceConnected && healthHistory && healthHistory.length > 0
+    ? (() => {
+        const tempReadings = healthHistory
+          .filter(h => h.body_temperature && h.body_temperature > 0)
+          .map(h => h.body_temperature!);
+        if (tempReadings.length === 0) return null;
+        
+        const average = tempReadings.reduce((sum, temp) => sum + temp, 0) / tempReadings.length;
+        return Math.round(average * 10) / 10; // Round to 1 decimal
+      })()
+    : null;
+    
+  // Calculate daily variation from historical data
+  const dailyVariation = isDeviceConnected && healthHistory && healthHistory.length > 0
+    ? (() => {
+        const tempReadings = healthHistory
+          .filter(h => h.body_temperature && h.body_temperature > 0)
+          .map(h => h.body_temperature!);
+        if (tempReadings.length === 0) return null;
+        
+        const max = Math.max(...tempReadings);
+        const min = Math.min(...tempReadings);
+        return Math.round((max - min) * 10) / 10; // Round to 1 decimal
+      })()
+    : null;
+
+  useEffect(() => {
+    if (!chartRef.current || !isDeviceConnected || chartData.length === 0) {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.destroy();
+        chartInstanceRef.current = null;
+      }
+      return;
     }
 
     if (chartInstanceRef.current) {
@@ -80,12 +178,16 @@ const TemperatureView: React.FC = () => {
       data: {
         labels: labels,
         datasets: [{
-          label: 'Temperature (°C)',
+          label: currentUserOnly ? 'Your Temperature (°C)' : 'Temperature (°C)',
           data: dataPoints,
-          borderColor: 'rgb(245, 158, 11)', // Tailwind amber-500
-          backgroundColor: 'rgba(245, 158, 11, 0.2)',
+          borderColor: 'rgb(245, 158, 11)', // Amber color for temperature
+          backgroundColor: 'rgba(245, 158, 11, 0.1)',
           fill: true,
           tension: 0.3,
+          pointRadius: 4,
+          pointBackgroundColor: 'rgb(245, 158, 11)',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
         }]
       },
       options: {
@@ -93,21 +195,28 @@ const TemperatureView: React.FC = () => {
         maintainAspectRatio: false,
         scales: {
           y: {
-            suggestedMin: 35,
-            suggestedMax: 38,
+            suggestedMin: Math.max(35, Math.min(...dataPoints) - 0.5),
+            suggestedMax: Math.min(40, Math.max(...dataPoints) + 0.5),
             title: { display: true, text: '°C', color: '#6b7280' },
             grid: { color: '#e5e7eb' },
-            ticks: { color: '#6b7280' }
+            ticks: { 
+              color: '#6b7280',
+              callback: function(value) {
+                return value + '°C';
+              }
+            }
           },
           x: {
-             title: { display: true, text: 'Time', color: '#6b7280' },
-             grid: { display: false },
-             ticks: { color: '#6b7280' }
+            title: { display: true, text: 'Time', color: '#6b7280' },
+            grid: { display: false },
+            ticks: { color: '#6b7280' }
           }
         },
         plugins: {
           tooltip: { 
-            callbacks: { label: (context) => `${context.dataset.label}: ${context.parsed.y}°C` },
+            callbacks: { 
+              label: (context) => `${context.dataset.label}: ${context.parsed.y}°C` 
+            },
             backgroundColor: '#fff',
             titleColor: '#374151',
             bodyColor: '#4b5563',
@@ -120,45 +229,78 @@ const TemperatureView: React.FC = () => {
         }
       }
     });
+    
     return () => {
       if (chartInstanceRef.current) {
         chartInstanceRef.current.destroy();
         chartInstanceRef.current = null;
       }
     };
-  }, [chartData, isDeviceConnected, timeRange]);
-
+  }, [chartData, isDeviceConnected, timeRange, currentUserOnly]);
 
   return (
     <div className="space-y-6">
+      {/* User-specific info */}
+      {currentUserOnly && userHealthData && (
+        <div className="bg-amber-50 border-l-4 border-amber-400 text-amber-700 p-4 rounded-md">
+          <p className="text-sm">
+            🌡️ Showing your personal body temperature data from database. 
+            Current temperature: {userHealthData.body_temperature ? `${userHealthData.body_temperature}°C` : 'No data'}
+            {userHealthData.last_updated && (
+              <span className="ml-2">
+                (Last updated: {new Date(userHealthData.last_updated).toLocaleString()})
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
+      {/* No data warning */}
+      {isDeviceConnected && (!userHealthData?.body_temperature && (!healthHistory || healthHistory.length === 0)) && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 p-4 rounded-md">
+          <p className="text-sm">
+            ⚠️ No body temperature data found in database. Please ensure your device is recording temperature data.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <StatCard 
-            title="Current Temperature" 
-            value={`${currentTemp}°C`}
-            icon={ThermometerIcon}
-            iconBgClass="bg-amber-100"
-            iconTextClass="text-amber-600"
-          />
-          <StatCard 
-            title={`Avg. Temp (${timeRange})`}
-            value={`${averageTemp}°C`}
-            icon={ActivityIcon} 
-            iconBgClass="bg-green-100"
-            iconTextClass="text-green-600"
-          />
-          <StatCard 
-            title={`Variation (${timeRange})`} 
-            value={`${dailyVariation}°C`}
-            icon={TrendUpIcon} 
-            iconBgClass="bg-blue-100"
-            iconTextClass="text-blue-600"
-          />
+        <StatCard 
+          title={currentUserOnly ? "Your Current Temperature" : "Current Temperature"} 
+          value={currentTemp ? `${currentTemp}°C` : '--'}
+          unit=""
+          icon={ThermometerIcon}
+          iconBgClass="bg-amber-100"
+          iconTextClass="text-amber-600"
+          tag={currentUserOnly ? "Personal" : "Live"}
+          tagColor="bg-amber-100 text-amber-700"
+        />
+        <StatCard 
+          title={`Avg. Temp (${timeRange})`}
+          value={averageTemp ? `${averageTemp}°C` : '--'}
+          unit=""
+          icon={ActivityIcon} 
+          iconBgClass="bg-green-100"
+          iconTextClass="text-green-600"
+          tag="From History"
+          tagColor="bg-green-100 text-green-700"
+        />
+        <StatCard 
+          title={`Variation (${timeRange})`} 
+          value={dailyVariation ? `${dailyVariation}°C` : '--'}
+          unit=""
+          icon={TrendUpIcon} 
+          iconBgClass="bg-blue-100"
+          iconTextClass="text-blue-600"
+          tag="Range"
+          tagColor="bg-blue-100 text-blue-700"
+        />
       </div>
 
       <ChartCard 
-        title="Body Temperature Trend"
+        title={currentUserOnly ? "Your Body Temperature Trend" : "Body Temperature Trend"}
         actions={
-           <div className="flex space-x-1">
+          <div className="flex space-x-1">
             {(['Today', 'Week', 'Month'] as const).map((range) => (
               <button
                 key={range}
@@ -176,20 +318,67 @@ const TemperatureView: React.FC = () => {
         }
       >
         <div className="chart-container">
-             {isDeviceConnected ? <canvas ref={chartRef}></canvas> : <p className="text-center text-gray-500 py-10">Connect device to view chart.</p>}
+          {isDeviceConnected && chartData.length > 0 ? (
+            <canvas ref={chartRef}></canvas>
+          ) : (
+            <div className="text-center text-gray-500 py-10">
+              {!isDeviceConnected ? (
+                <p>{currentUserOnly ? 'Connect your device to view your temperature chart.' : 'Connect device to view chart.'}</p>
+              ) : (
+                <div>
+                  <p>No temperature data available for {timeRange.toLowerCase()}</p>
+                  <p className="text-sm mt-2">Charts show ONLY real database data - no mock data</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </ChartCard>
       
       <div className="bg-white shadow-lg rounded-xl p-5">
-        <h3 className="text-lg font-medium text-gray-900 mb-3">Temperature Insights</h3>
-        {isDeviceConnected ? (
-        <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-            <li>Your current body temperature is <span className="font-semibold">{currentTemp}°C</span>. Normal range is typically 36.1°C to 37.2°C.</li>
-            {typeof currentTemp === 'number' && currentTemp > 37.5 && <li className="text-red-600 font-medium">Your temperature is slightly elevated. Monitor for other symptoms.</li>}
-            <li>Body temperature can fluctuate naturally throughout the day due to activity and environment.</li>
-        </ul>
+        <h3 className="text-lg font-medium text-gray-900 mb-3">
+          {currentUserOnly ? "Your Temperature Insights" : "Temperature Insights"}
+        </h3>
+        {isDeviceConnected && (currentTemp || (healthHistory && healthHistory.length > 0)) ? (
+          <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+            {currentUserOnly ? (
+              <>
+                {currentTemp && (
+                  <li>Your current body temperature is <span className="font-semibold">{currentTemp}°C</span>. 
+                    {currentTemp >= 36.1 && currentTemp <= 37.2 ? ' This is within the normal range (36.1°C to 37.2°C).' : 
+                     currentTemp > 37.5 ? ' This is slightly elevated. Monitor for other symptoms.' :
+                     ' This is below normal range. Consider consulting a healthcare provider if you feel unwell.'}
+                  </li>
+                )}
+                {averageTemp && (
+                  <li>Your average body temperature is <span className="font-semibold">{averageTemp}°C</span> based on your history.</li>
+                )}
+                {dailyVariation && (
+                  <li>Your temperature variation is <span className="font-semibold">{dailyVariation}°C</span>. 
+                    {dailyVariation > 1.0 ? ' This is higher than typical daily variation.' : ' This is normal daily variation.'}
+                  </li>
+                )}
+                <li>Body temperature can fluctuate naturally throughout the day due to activity and environment.</li>
+                <li>All data comes directly from your device readings stored in the database.</li>
+                {healthHistory && healthHistory.length > 0 && (
+                  <li>We have <span className="font-semibold">{healthHistory.filter(h => h.body_temperature).length}</span> temperature readings in your history.</li>
+                )}
+              </>
+            ) : (
+              <>
+                {currentTemp && <li>Current temperature: <span className="font-semibold">{currentTemp}°C</span></li>}
+                {averageTemp && <li>Average temperature: <span className="font-semibold">{averageTemp}°C</span></li>}
+                <li>Data is sourced directly from database records.</li>
+              </>
+            )}
+          </ul>
         ) : (
-        <p className="text-sm text-gray-500">Connect your device to see temperature insights.</p>
+          <p className="text-sm text-gray-500">
+            {currentUserOnly 
+              ? "No temperature data found in your profile. Connect your device and ensure it's recording temperature data." 
+              : "No temperature data available. Connect device and ensure data is being recorded."
+            }
+          </p>
         )}
       </div>
     </div>

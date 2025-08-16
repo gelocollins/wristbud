@@ -281,9 +281,7 @@ export const SmartwatchImageSVG = ({ className = "w-48 h-48 mx-auto" }: { classN
 
 
 export const ADMIN_SIDEBAR_NAV_ITEMS: NavItem[] = [
-  { name: 'Dashboard', path: '/admin/dashboard', icon: HomeIcon },
-  { name: 'Health Trends', path: '/admin/health-trends', icon: ChartBarIcon },
-  { name: 'Activity Log', path: '/admin/activity-log', icon: DocumentTextIcon },
+  { name: 'Dashboard', path: '/admin/dashboard', icon: HomeIcon }
 ];
 
 export const DASHBOARD_TABS: { name: DashboardTab, icon: (props: { className?: string }) => React.ReactNode }[] = [

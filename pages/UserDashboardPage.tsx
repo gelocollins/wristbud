@@ -1,6 +1,7 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import TabSelector from '../components/TabSelector';
-import { ExclamationCircleIcon, UserCircleIcon, CogIcon } from '../constants';
+import { DashboardTab } from '../types';
+import { DASHBOARD_TABS, ExclamationCircleIcon, UserCircleIcon, CogIcon } from '../constants';
 import HeartRateView from './dashboard/HeartRateView';
 import StepsView from './dashboard/StepsView';
 import SleepView from './dashboard/SleepView';
@@ -27,9 +28,12 @@ interface UserHealthData {
   stress_level?: string;
   analysis_report?: string;
   last_updated: string;
-  emergency_contact_name: string;
-  emergency_contact_phone: string;
-  emergency_contact_relationship?: string;
+  emergency_contact1: string;
+  emergency_phone1: string;
+  emergency_contact2: string;
+  emergency_phone2: string;
+  emergency_contact3?: string;
+  emergency_phone3?: string;
   device_status?: string;
 }
 
@@ -115,8 +119,13 @@ const UserDashboardPage: React.FC = () => {
             oxygen_level: latestData.spo2,
             body_temperature: latestData.temperature,
             last_updated: latestData.recorded_at,
-            emergency_contact_name: '',
-            emergency_contact_phone: ''
+            emergency_contact1: latestData.emergency_contact1,
+            emergency_phone1: latestData.emergency_phone1,
+            emergency_contact2: latestData.emergency_contact2,
+            emergency_phone2: latestData.emergency_phone2,
+            emergency_contact3: latestData.emergency_contact3,
+            emergency_phone3: latestData.emergency_phone3,
+            device_status: latestData.device_status,
           };
 
           // Transform health history
@@ -232,86 +241,6 @@ const UserDashboardPage: React.FC = () => {
         return null;
     }
   };
-
-  // Utility to group health history by hour and get the latest entry for each hour
-  function groupByHour(history: HealthHistory[]) {
-    const map = new Map<string, HealthHistory>();
-    history.forEach((item) => {
-      const date = new Date(item.last_updated);
-      // Format as 'YYYY-MM-DD HH:00' for grouping
-      const hourKey = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:00`;
-      if (!map.has(hourKey) || date > new Date(map.get(hourKey)!.last_updated)) {
-        map.set(hourKey, item);
-      }
-    });
-    // Sort by time descending
-    return Array.from(map.values()).sort((a, b) => new Date(b.last_updated).getTime() - new Date(a.last_updated).getTime());
-  }
-
-  // Utility to filter health history for the last 24 hours
-  function filterLast24Hours(history: HealthHistory[]) {
-    const now = Date.now();
-    return history.filter(h => (now - new Date(h.last_updated).getTime()) < 24 * 60 * 60 * 1000);
-  }
-
-  // Utility to format hour as '3:00 PM'
-  function formatHour(dateString: string) {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-  }
-
-  // Utility to download health data as a formal PDF report
-  async function downloadPDF(history: HealthHistory[]) {
-    if (!history.length) return;
-    const jsPDF = (await import('jspdf')).jsPDF;
-    const autoTable = (await import('jspdf-autotable')).default;
-    const doc = new jsPDF();
-    // Header
-    doc.setFontSize(18);
-    doc.text('Wristbud Health Report', 105, 18, { align: 'center' });
-    doc.setFontSize(12);
-    doc.text(`Patient Name: ${userHealthData?.name || 'N/A'}`, 14, 30);
-    doc.text(`Email: ${userHealthData?.email || 'N/A'}`, 14, 38);
-    doc.text(`Date Generated: ${new Date().toLocaleString()}`, 14, 46);
-    // Most recent data summary
-    if (userHealthData) {
-      doc.setFontSize(13);
-      doc.text('Most Recent Data:', 14, 58);
-      doc.setFontSize(11);
-      let y = 64;
-      const summary = [
-        [`Status`, userHealthData.health_status],
-        userHealthData.heart_rate ? ["Heart Rate (BPM)", String(userHealthData.heart_rate)] : null,
-        userHealthData.systolic_bp && userHealthData.diastolic_bp ? ["Blood Pressure", `${userHealthData.systolic_bp}/${userHealthData.diastolic_bp}`] : null,
-        userHealthData.oxygen_level ? ["Oxygen Level (%)", String(userHealthData.oxygen_level)] : null,
-        userHealthData.body_temperature ? ["Temperature (°C)", String(userHealthData.body_temperature)] : null,
-        userHealthData.steps ? ["Steps Today", String(userHealthData.steps)] : null,
-        userHealthData.calories_burned ? ["Calories Burned", String(userHealthData.calories_burned)] : null,
-        userHealthData.sleep_hours ? ["Sleep Hours", String(userHealthData.sleep_hours)] : null,
-        userHealthData.analysis_report ? ["Analysis", userHealthData.analysis_report] : null,
-        ["Last Updated", new Date(userHealthData.last_updated).toLocaleString()]
-      ].filter(Boolean) as [string, string][];
-      summary.forEach(([label, value]) => {
-        doc.text(`${label}: ${value}`, 18, y);
-        y += 7;
-      });
-    }
-    // Table of last 24h data
-    doc.setFontSize(13);
-    doc.text('24-Hour Health Data (Hourly)', 14, 110);
-    const headers = Object.keys(history[0]);
-    const rows = history.map(row => headers.map(h => row[h as keyof HealthHistory] ?? ''));
-    autoTable(doc, {
-      head: [headers],
-      body: rows,
-      startY: 115,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [41, 128, 185] },
-      margin: { left: 14, right: 14 },
-      tableWidth: 'auto',
-    });
-    doc.save(`wristbud_health_report_${new Date().toISOString().slice(0,10)}.pdf`);
-  }
 
   return (
     <div className="space-y-6">
@@ -431,7 +360,7 @@ const UserDashboardPage: React.FC = () => {
       {/* Your Health Summary */}
       {userHealthData && (
         <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">📊 Your Health Summary (Real Database Data)</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">📊 Your Health Summary</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {userHealthData.heart_rate && (
               <div className="text-center p-3 bg-red-50 rounded-lg">
@@ -491,14 +420,23 @@ const UserDashboardPage: React.FC = () => {
           )}
 
           {/* Emergency Contact Info */}
-          {userHealthData.emergency_contact_name && (
+          {(userHealthData.emergency_contact1 || userHealthData.emergency_contact2) && (
             <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-gray-900 mb-2">🚨 Emergency Contact</h4>
-              <div className="text-sm text-gray-700">
-                <p><strong>{userHealthData.emergency_contact_name}</strong></p>
-                <p>{userHealthData.emergency_contact_phone}</p>
-                {userHealthData.emergency_contact_relationship && (
-                  <p className="text-gray-600">Relationship: {userHealthData.emergency_contact_relationship}</p>
+              <h4 className="font-medium text-gray-900 mb-2">🚨 Emergency Contacts</h4>
+              <div className="text-sm text-gray-700 space-y-2">
+                <div>
+                  <strong>Contact 1:</strong> {userHealthData.emergency_contact1} <br />
+                  <span className="text-xs text-gray-600">{userHealthData.emergency_phone1}</span>
+                </div>
+                <div>
+                  <strong>Contact 2:</strong> {userHealthData.emergency_contact2} <br />
+                  <span className="text-xs text-gray-600">{userHealthData.emergency_phone2}</span>
+                </div>
+                {userHealthData.emergency_contact3 && userHealthData.emergency_phone3 && (
+                  <div>
+                    <strong>Contact 3:</strong> {userHealthData.emergency_contact3} <br />
+                    <span className="text-xs text-gray-600">{userHealthData.emergency_phone3}</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -509,33 +447,25 @@ const UserDashboardPage: React.FC = () => {
       {/* Health History Chart */}
       {healthHistory.length > 0 && (
         <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">📈 Your Health Trends (Real Database History)</h3>
-            <button
-              className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-              onClick={() => downloadPDF(filterLast24Hours(healthHistory))}
-            >
-              Download My Health Data (24h PDF)
-            </button>
-          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">📈 Your Health Trends</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <h4 className="font-medium text-gray-700">Heart Rate Readings (Hourly)</h4>
+              <h4 className="font-medium text-gray-700">Heart Rate Readings</h4>
               <div className="space-y-1">
-                {groupByHour(healthHistory.filter(h => h.heart_rate)).slice(0, 24).map((reading, index) => (
+                {healthHistory.filter(h => h.heart_rate).slice(0, 5).map((reading, index) => (
                   <div key={index} className="flex justify-between text-sm">
-                    <span>{formatHour(reading.last_updated)}</span>
+                    <span>{new Date(reading.last_updated).toLocaleTimeString()}</span>
                     <span className="font-medium">{reading.heart_rate} BPM</span>
                   </div>
                 ))}
               </div>
             </div>
             <div className="space-y-2">
-              <h4 className="font-medium text-gray-700">Blood Pressure Readings (Hourly)</h4>
+              <h4 className="font-medium text-gray-700">Blood Pressure Readings</h4>
               <div className="space-y-1">
-                {groupByHour(healthHistory.filter(h => h.systolic_bp && h.diastolic_bp)).slice(0, 24).map((reading, index) => (
+                {healthHistory.filter(h => h.systolic_bp && h.diastolic_bp).slice(0, 5).map((reading, index) => (
                   <div key={index} className="flex justify-between text-sm">
-                    <span>{formatHour(reading.last_updated)}</span>
+                    <span>{new Date(reading.last_updated).toLocaleTimeString()}</span>
                     <span className="font-medium">{reading.systolic_bp}/{reading.diastolic_bp}</span>
                   </div>
                 ))}

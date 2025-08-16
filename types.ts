@@ -39,8 +39,12 @@ export interface Activity {
 export interface UserProfile {
   name: string;
   email: string;
-  emergency_contact?: string;
-  emergency_phone?: string;
+  emergency_contact1: string;
+  emergency_phone1: string;
+  emergency_contact2: string;
+  emergency_phone2: string;
+  emergency_contact3?: string;
+  emergency_phone3?: string;
 }
 
 export interface FAQItem {

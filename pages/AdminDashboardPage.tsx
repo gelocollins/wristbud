@@ -33,8 +33,8 @@ const UserHealthReport: React.FC<HealthReportProps> = ({ user, healthData, alert
         <Text style={styles.header}>User Information</Text>
         <Text style={styles.text}>Name: {user.name}</Text>
         <Text style={styles.text}>Email: {user.email}</Text>
-        <Text style={styles.text}>Emergency Contact: {user.emergency_contact || 'Not set'}</Text>
-        <Text style={styles.text}>Emergency Phone: {user.emergency_phone || 'Not set'}</Text>
+        <Text style={styles.text}>Emergency Contact: {user.emergency_contact1 || 'Not set'}</Text>
+        <Text style={styles.text}>Emergency Phone: {user.emergency_phone1 || 'Not set'}</Text>
       </View>
 
       {/* Health Data */}
@@ -85,8 +85,12 @@ interface User {
   id: number;
   name: string;
   email: string;
-  emergency_contact: string;
-  emergency_phone: string;
+  emergency_contact1: string;
+  emergency_phone1: string;
+  emergency_contact2: string;
+  emergency_phone2: string;
+  emergency_contact3?: string;
+  emergency_phone3?: string;
   created_at: string;
 }
 
@@ -127,7 +131,44 @@ const AdminDashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('Dashboard');
   const appContext = useContext(GlobalAppContext);
 
+  // --- Live Monitor State ---
+  const [liveUsers, setLiveUsers] = useState<any[]>([]);
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveError, setLiveError] = useState('');
+
+  // --- Live Monitor Polling ---
+  useEffect(() => {
+    let interval;
+    const fetchLiveUsers = async () => {
+      setLiveLoading(true);
+      setLiveError('');
+      try {
+        const res = await fetch('http://localhost:5000/api/admin/users');
+        if (!res.ok) throw new Error('Failed to fetch users');
+        const data = await res.json();
+        const usersWithStatus = data.users.map((user) => {
+          const latest = user.health_history && user.health_history[0];
+          return {
+            ...user,
+            status: latest ? latest.status : 'unknown',
+            last_updated: latest ? latest.recorded_at : null,
+            heart_rate: latest ? latest.heart_rate : null,
+          };
+        });
+        setLiveUsers(usersWithStatus);
+      } catch (err) {
+        setLiveError('Failed to load live user data');
+      } finally {
+        setLiveLoading(false);
+      }
+    };
+    fetchLiveUsers();
+    interval = setInterval(fetchLiveUsers, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   const ADMIN_TABS = useMemo(() => [
+    { name: 'Live Monitor', icon: UserCircleIcon },
     { name: 'Dashboard', icon: UserCircleIcon },
     { name: 'Profile', icon: ProfileIcon },
     { name: 'Settings', icon: CogIcon },
@@ -346,40 +387,42 @@ const AdminDashboardPage: React.FC = () => {
     </div>
   );
 
+  const LiveMonitorTab = () => (
+    <div className="bg-white shadow rounded-lg p-6">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Live User Monitor</h2>
+      {liveError && <div className="bg-red-100 text-red-700 p-4 rounded-md mb-4">{liveError}</div>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {liveUsers.map(user => {
+          let borderColor = 'border-gray-300';
+          if (user.status === 'critical') borderColor = 'border-red-500';
+          else if (user.status === 'abnormal') borderColor = 'border-yellow-500';
+          else if (user.status === 'normal') borderColor = 'border-green-500';
+          return (
+            <div key={user.id} className={`border-4 ${borderColor} rounded-xl p-4 shadow flex flex-col items-center transition-colors duration-300 bg-white`}>
+              <UserCircleIcon className="w-10 h-10 text-blue-400 mb-2" />
+              <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
+              <p className="text-xs text-gray-500 mb-1">{user.email}</p>
+              <div className="text-sm font-medium mb-1">
+                Status: <span className={`capitalize ${user.status === 'critical' ? 'text-red-600' : user.status === 'abnormal' ? 'text-yellow-600' : user.status === 'normal' ? 'text-green-600' : 'text-gray-500'}`}>{user.status || 'unknown'}</span>
+              </div>
+              {user.heart_rate && <div className="text-xs text-gray-700">HR: {user.heart_rate} BPM</div>}
+              {user.last_updated && <div className="text-xs text-gray-400">{new Date(user.last_updated).toLocaleTimeString()}</div>}
+            </div>
+          );
+        })}
+        {liveUsers.length === 0 && !liveLoading && <div className="col-span-full text-center text-gray-400">No users found.</div>}
+      </div>
+    </div>
+  );
+
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'Live Monitor':
+        return <LiveMonitorTab />;
       case 'Dashboard':
         return (
           <>
             {/* Search, Users List, User Details Modal, etc. */}
-            <div className="space-y-6">
-              <div className="bg-white shadow-md rounded-lg">
-                <div className="px-4 sm:px-6 pt-3">
-                  <nav className="-mb-px flex space-x-4" aria-label="Tabs">
-                    {ADMIN_TABS.map((tab) => (
-                      <button
-                        key={tab.name}
-                        onClick={() => setActiveTab(tab.name)}
-                        className={`group inline-flex items-center py-3 px-1 border-b-2 font-medium text-sm
-                          focus:outline-none transition-colors duration-150
-                          ${
-                            tab.name === activeTab
-                              ? 'border-brand-primary text-brand-primary'
-                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                          }`}
-                        aria-current={tab.name === activeTab ? 'page' : undefined}
-                      >
-                        <tab.icon className={`w-5 h-5 mr-2 ${tab.name === activeTab ? 'text-brand-primary' : 'text-gray-400 group-hover:text-gray-500'}`} />
-                        {tab.name}
-                      </button>
-                    ))}
-                  </nav>
-                </div>
-                <div className="p-4 sm:p-6">
-                  {renderTabContent()}
-                </div>
-              </div>
-            </div>
             <div className="bg-white shadow-md rounded-lg p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold text-gray-900">Admin Dashboard</h2>
@@ -400,13 +443,11 @@ const AdminDashboardPage: React.FC = () => {
                   </button>
                 </div>
               </div>
-              
               {error && (
                 <div className="bg-red-100 text-red-700 p-4 rounded-md mb-4">
                   {error}
                 </div>
               )}
-              
               <div className="bg-white shadow overflow-hidden sm:rounded-md">
                 <ul className="divide-y divide-gray-200">
                   {filteredUsers.map((user) => (
@@ -426,18 +467,17 @@ const AdminDashboardPage: React.FC = () => {
                             </p>
                           </div>
                         </div>
-                        
                         <div className="flex items-center space-x-4">
                           <div className="text-right">
-                            <div className="text-sm text-gray-500">Emergency Contact</div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {user.emergency_contact || 'Not set'}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {user.emergency_phone || 'No phone'}
+                            <div className="text-sm text-gray-500">Emergency Contacts</div>
+                            <div className="text-xs text-gray-700">
+                              <div><strong>1:</strong> {user.emergency_contact1} <span className="text-gray-500">{user.emergency_phone1}</span></div>
+                              <div><strong>2:</strong> {user.emergency_contact2} <span className="text-gray-500">{user.emergency_phone2}</span></div>
+                              {user.emergency_contact3 && user.emergency_phone3 && (
+                                <div><strong>3:</strong> {user.emergency_contact3} <span className="text-gray-500">{user.emergency_phone3}</span></div>
+                              )}
                             </div>
                           </div>
-                          
                           <button
                             onClick={() => fetchUserDetails(user)}
                             disabled={loading}
@@ -450,7 +490,6 @@ const AdminDashboardPage: React.FC = () => {
                       </div>
                     </div>
                   ))}
-                  
                   {filteredUsers.length === 0 && !loading && (
                     <div className="p-6 text-center text-gray-500">
                       {searchTerm ? 'No users found matching your search.' : 'No users found.'}
@@ -459,7 +498,6 @@ const AdminDashboardPage: React.FC = () => {
                 </ul>
               </div>
             </div>
-
             {/* User Details Modal */}
             {showUserDetails && selectedUser && (
               <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -476,7 +514,6 @@ const AdminDashboardPage: React.FC = () => {
                         <span className="text-2xl">&times;</span>
                       </button>
                     </div>
-
                     {/* User Info */}
                     <div className="bg-gray-50 p-4 rounded-lg mb-6">
                       <div className="grid grid-cols-2 gap-4">
@@ -484,24 +521,27 @@ const AdminDashboardPage: React.FC = () => {
                           <strong>Email:</strong> {selectedUser.email}
                         </div>
                         <div>
-                          <strong>Emergency Contact:</strong> {selectedUser.emergency_contact || 'Not set'}
+                          <strong>Emergency Contact 1:</strong> {selectedUser.emergency_contact1} <span className="text-xs text-gray-500">{selectedUser.emergency_phone1}</span>
                         </div>
                         <div>
-                          <strong>Emergency Phone:</strong> {selectedUser.emergency_phone || 'Not set'}
+                          <strong>Emergency Contact 2:</strong> {selectedUser.emergency_contact2} <span className="text-xs text-gray-500">{selectedUser.emergency_phone2}</span>
                         </div>
+                        {selectedUser.emergency_contact3 && selectedUser.emergency_phone3 && (
+                          <div>
+                            <strong>Emergency Contact 3:</strong> {selectedUser.emergency_contact3} <span className="text-xs text-gray-500">{selectedUser.emergency_phone3}</span>
+                          </div>
+                        )}
                         <div>
                           <strong>Registered:</strong> {new Date(selectedUser.created_at).toLocaleDateString()}
                         </div>
                       </div>
                     </div>
-
                     {/* Health Data */}
                     <div className="mb-6">
                       <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                         <HeartIcon className="w-5 h-5 mr-2 text-red-500" />
                         Health Data History ({userHealthData.length} records)
                       </h4>
-                      
                       {userHealthData.length > 0 ? (
                         <div className="overflow-x-auto">
                           <table className="min-w-full divide-y divide-gray-200">
@@ -555,13 +595,11 @@ const AdminDashboardPage: React.FC = () => {
                         <p className="text-gray-500 text-center py-4">No health data found for this user.</p>
                       )}
                     </div>
-
                     {/* Alerts */}
                     <div className="mb-6">
                       <h4 className="text-lg font-medium text-gray-900 mb-4">
                         🚨 Recent Alerts ({userAlerts.length})
                       </h4>
-                      
                       {userAlerts.length > 0 ? (
                         <div className="space-y-3">
                           {userAlerts.slice(0, 5).map((alert) => (
@@ -600,7 +638,6 @@ const AdminDashboardPage: React.FC = () => {
                         <p className="text-gray-500 text-center py-4">No alerts found for this user.</p>
                       )}
                     </div>
-
                     <div className="flex justify-end">
                       <PDFDownloadLink
                         document={<UserHealthReport user={selectedUser} healthData={userHealthData} alerts={userAlerts} />}

@@ -40,8 +40,12 @@ const ProfilePage: React.FC = () => {
           const serverProfile: UserProfile = {
             name: data.user.name,
             email: data.user.email,
-            emergency_contact: data.user.emergency_contact,
-            emergency_phone: data.user.emergency_phone,
+            emergency_contact1: data.user.emergency_contact1,
+            emergency_phone1: data.user.emergency_phone1,
+            emergency_contact2: data.user.emergency_contact2,
+            emergency_phone2: data.user.emergency_phone2,
+            emergency_contact3: data.user.emergency_contact3,
+            emergency_phone3: data.user.emergency_phone3,
           };
           setEditableProfile(serverProfile);
           if (appContext?.setCurrentUserProfile) {
@@ -81,6 +85,12 @@ const ProfilePage: React.FC = () => {
     try {
       const token = localStorage.getItem('authToken');
       if (!token || !editableProfile) return;
+      // Validate at least 2 contacts
+      if (!editableProfile.emergency_contact1 || !editableProfile.emergency_phone1 || !editableProfile.emergency_contact2 || !editableProfile.emergency_phone2) {
+        setMessage('At least 2 emergency contacts are required.');
+        setIsLoading(false);
+        return;
+      }
       const res = await fetch('http://localhost:5000/api/profile', {
         method: 'PUT',
         headers: {
@@ -219,18 +229,52 @@ const ProfilePage: React.FC = () => {
                   onChange={handleChange}
                 />
                 <ProfileField
-                  label="Emergency Contact"
-                  name="emergency_contact"
-                  value={editableProfile.emergency_contact}
+                  label="Emergency Contact 1 Name"
+                  name="emergency_contact1"
+                  value={editableProfile.emergency_contact1}
                   isEditing={isEditing}
                   onChange={handleChange}
+                  placeholder="Full name"
                 />
                 <ProfileField
-                  label="Emergency Phone"
-                  name="emergency_phone"
-                  value={editableProfile.emergency_phone}
+                  label="Emergency Contact 1 Phone"
+                  name="emergency_phone1"
+                  value={editableProfile.emergency_phone1}
                   isEditing={isEditing}
                   onChange={handleChange}
+                  placeholder="+1234567890"
+                />
+                <ProfileField
+                  label="Emergency Contact 2 Name"
+                  name="emergency_contact2"
+                  value={editableProfile.emergency_contact2}
+                  isEditing={isEditing}
+                  onChange={handleChange}
+                  placeholder="Full name"
+                />
+                <ProfileField
+                  label="Emergency Contact 2 Phone"
+                  name="emergency_phone2"
+                  value={editableProfile.emergency_phone2}
+                  isEditing={isEditing}
+                  onChange={handleChange}
+                  placeholder="+1234567890"
+                />
+                <ProfileField
+                  label="Emergency Contact 3 Name (Optional)"
+                  name="emergency_contact3"
+                  value={editableProfile.emergency_contact3}
+                  isEditing={isEditing}
+                  onChange={handleChange}
+                  placeholder="Full name"
+                />
+                <ProfileField
+                  label="Emergency Contact 3 Phone (Optional)"
+                  name="emergency_phone3"
+                  value={editableProfile.emergency_phone3}
+                  isEditing={isEditing}
+                  onChange={handleChange}
+                  placeholder="+1234567890"
                 />
               </div>
             </div>

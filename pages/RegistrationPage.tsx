@@ -9,9 +9,12 @@ const RegistrationPage: React.FC = () => {
     password: '',
     confirmPassword: '',
     userType: 'user' as 'user' | 'admin',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
-    emergencyContactRelationship: ''
+    emergency_contact1: '',
+    emergency_phone1: '',
+    emergency_contact2: '',
+    emergency_phone2: '',
+    emergency_contact3: '',
+    emergency_phone3: ''
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -60,19 +63,19 @@ const RegistrationPage: React.FC = () => {
       return false;
     }
     
-    if (!formData.emergencyContactName.trim()) {
-      setError('Emergency contact name is required');
-      return false;
-    }
-    
-    if (!formData.emergencyContactPhone.trim()) {
-      setError('Emergency contact phone number is required');
+    if (!formData.emergency_contact1.trim() || !formData.emergency_phone1.trim() || !formData.emergency_contact2.trim() || !formData.emergency_phone2.trim()) {
+      setError('At least 2 emergency contacts (name and phone) are required');
       return false;
     }
     
     const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    if (!phoneRegex.test(formData.emergencyContactPhone.replace(/[\s\-\(\)]/g, ''))) {
-      setError('Please enter a valid phone number');
+    if (!phoneRegex.test(formData.emergency_phone1.replace(/[\s\-\(\)]/g, '')) || !phoneRegex.test(formData.emergency_phone2.replace(/[\s\-\(\)]/g, ''))) {
+      setError('Please enter valid phone numbers for the first two emergency contacts');
+      return false;
+    }
+    
+    if (formData.emergency_phone3 && !phoneRegex.test(formData.emergency_phone3.replace(/[\s\-\(\)]/g, ''))) {
+      setError('Please enter a valid phone number for the third emergency contact');
       return false;
     }
     
@@ -91,7 +94,7 @@ const RegistrationPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://nocollateralloan.org/auth/api/register_updated.php', {
+      const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,17 +104,18 @@ const RegistrationPage: React.FC = () => {
           name: formData.name.trim(),
           email: formData.email.trim().toLowerCase(),
           password: formData.password,
-          userType: formData.userType,
-          emergencyContactName: formData.emergencyContactName.trim(),
-          emergencyContactPhone: formData.emergencyContactPhone.trim(),
-          emergencyContactRelationship: formData.emergencyContactRelationship.trim(),
-          app: 'wristbud'
+          emergency_contact1: formData.emergency_contact1.trim(),
+          emergency_phone1: formData.emergency_phone1.trim(),
+          emergency_contact2: formData.emergency_contact2.trim(),
+          emergency_phone2: formData.emergency_phone2.trim(),
+          emergency_contact3: formData.emergency_contact3.trim() || undefined,
+          emergency_phone3: formData.emergency_phone3.trim() || undefined,
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
+      if (response.ok && (data.success || data.message === 'User registered successfully')) {
         setSuccess('Registration successful! You can now login with your credentials.');
         // Clear form
         setFormData({
@@ -120,9 +124,12 @@ const RegistrationPage: React.FC = () => {
           password: '',
           confirmPassword: '',
           userType: 'user',
-          emergencyContactName: '',
-          emergencyContactPhone: '',
-          emergencyContactRelationship: ''
+          emergency_contact1: '',
+          emergency_phone1: '',
+          emergency_contact2: '',
+          emergency_phone2: '',
+          emergency_contact3: '',
+          emergency_phone3: ''
         });
         
         // Redirect to login after 2 seconds
@@ -296,59 +303,111 @@ const RegistrationPage: React.FC = () => {
             {/* Emergency Contact Section */}
             <div className="border-t pt-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Emergency Contact Information</h3>
-              <p className="text-sm text-gray-600 mb-4">Required for health alerts and emergency notifications</p>
+              <p className="text-sm text-gray-600 mb-4">2 contacts required, 3rd is optional</p>
               
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="emergencyContactName" className="block text-sm font-medium text-gray-700">
-                    Emergency Contact Full Name *
+                  <label htmlFor="emergency_contact1" className="block text-sm font-medium text-gray-700">
+                    Emergency Contact 1 Name *
                   </label>
                   <div className="mt-1">
                     <input
-                      id="emergencyContactName"
-                      name="emergencyContactName"
+                      id="emergency_contact1"
+                      name="emergency_contact1"
                       type="text"
                       required
-                      value={formData.emergencyContactName}
+                      value={formData.emergency_contact1}
                       onChange={handleInputChange}
                       className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
-                      placeholder="Enter relative's full name"
+                      placeholder="Full name"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label htmlFor="emergencyContactPhone" className="block text-sm font-medium text-gray-700">
-                    Emergency Contact Phone Number *
+                  <label htmlFor="emergency_phone1" className="block text-sm font-medium text-gray-700">
+                    Emergency Contact 1 Phone *
                   </label>
                   <div className="mt-1">
                     <input
-                      id="emergencyContactPhone"
-                      name="emergencyContactPhone"
+                      id="emergency_phone1"
+                      name="emergency_phone1"
                       type="tel"
                       required
-                      value={formData.emergencyContactPhone}
+                      value={formData.emergency_phone1}
                       onChange={handleInputChange}
                       className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
                       placeholder="+1234567890"
                     />
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">Include country code (e.g., +1 for US)</p>
                 </div>
 
                 <div>
-                  <label htmlFor="emergencyContactRelationship" className="block text-sm font-medium text-gray-700">
-                    Relationship (Optional)
+                  <label htmlFor="emergency_contact2" className="block text-sm font-medium text-gray-700">
+                    Emergency Contact 2 Name *
                   </label>
                   <div className="mt-1">
                     <input
-                      id="emergencyContactRelationship"
-                      name="emergencyContactRelationship"
+                      id="emergency_contact2"
+                      name="emergency_contact2"
                       type="text"
-                      value={formData.emergencyContactRelationship}
+                      required
+                      value={formData.emergency_contact2}
                       onChange={handleInputChange}
                       className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
-                      placeholder="e.g., Mother, Father, Spouse, Sibling"
+                      placeholder="Full name"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="emergency_phone2" className="block text-sm font-medium text-gray-700">
+                    Emergency Contact 2 Phone *
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="emergency_phone2"
+                      name="emergency_phone2"
+                      type="tel"
+                      required
+                      value={formData.emergency_phone2}
+                      onChange={handleInputChange}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
+                      placeholder="+1234567890"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="emergency_contact3" className="block text-sm font-medium text-gray-700">
+                    Emergency Contact 3 Name (Optional)
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="emergency_contact3"
+                      name="emergency_contact3"
+                      type="text"
+                      value={formData.emergency_contact3}
+                      onChange={handleInputChange}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
+                      placeholder="Full name"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="emergency_phone3" className="block text-sm font-medium text-gray-700">
+                    Emergency Contact 3 Phone (Optional)
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="emergency_phone3"
+                      name="emergency_phone3"
+                      type="tel"
+                      value={formData.emergency_phone3}
+                      onChange={handleInputChange}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
+                      placeholder="+1234567890"
                     />
                   </div>
                 </div>

@@ -104,11 +104,15 @@ app.post("/api/register", async (req, res) => {
       email,
       password,
       name,
-      emergency_contact,
-      emergency_phone,
+      emergency_contact1,
+      emergency_phone1,
+      emergency_contact2,
+      emergency_phone2,
+      emergency_contact3,
+      emergency_phone3,
     } = req.body;
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: "Email, password, and name are required" });
+    if (!email || !password || !name || !emergency_contact1 || !emergency_phone1 || !emergency_contact2 || !emergency_phone2) {
+      return res.status(400).json({ error: "Email, password, name, and at least 2 emergency contacts are required" });
     }
     const [existingUsers] = await pool.execute(
       "SELECT id FROM users WHERE email = ?",
@@ -120,13 +124,17 @@ app.post("/api/register", async (req, res) => {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     const [result] = await pool.execute(
-      "INSERT INTO users (email, password, name, emergency_contact, emergency_phone, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
+      "INSERT INTO users (email, password, name, emergency_contact1, emergency_phone1, emergency_contact2, emergency_phone2, emergency_contact3, emergency_phone3, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
       [
         email,
         hashedPassword,
         name,
-        emergency_contact || null,
-        emergency_phone || null,
+        emergency_contact1,
+        emergency_phone1,
+        emergency_contact2,
+        emergency_phone2,
+        emergency_contact3 || null,
+        emergency_phone3 || null,
       ]
     );
     if (!result.insertId) {
@@ -301,7 +309,7 @@ app.post("/api/emergency_alert", authenticateToken, async (req, res) => {
       } = req.body,
       userId = req.user.userId,
       [users] = await pool.execute(
-        "SELECT name, email, emergency_contact, emergency_phone FROM users WHERE id = ?",
+        "SELECT name, email, emergency_contact1, emergency_phone1, emergency_contact2, emergency_phone2, emergency_contact3, emergency_phone3 FROM users WHERE id = ?",
         [userId]
       );
     if (users.length === 0)
@@ -329,8 +337,11 @@ app.post("/api/emergency_alert", authenticateToken, async (req, res) => {
     console.log("🚨 EMERGENCY ALERT TRIGGERED:", {
       user: user.name,
       email: user.email,
-      emergency_contact: user.emergency_contact,
-      emergency_phone: user.emergency_phone,
+      emergency_contacts: [
+        { contact: user.emergency_contact1, phone: user.emergency_phone1 },
+        { contact: user.emergency_contact2, phone: user.emergency_phone2 },
+        { contact: user.emergency_contact3, phone: user.emergency_phone3 },
+      ],
       vitals: {
         heart_rate: heart_rate,
         blood_pressure: blood_pressure,
@@ -343,8 +354,11 @@ app.post("/api/emergency_alert", authenticateToken, async (req, res) => {
     res.json({
       message: "Emergency alert sent successfully",
       alert_id: alertResult.insertId,
-      emergency_contact: user.emergency_contact,
-      emergency_phone: user.emergency_phone,
+      emergency_contacts: [
+        { contact: user.emergency_contact1, phone: user.emergency_phone1 },
+        { contact: user.emergency_contact2, phone: user.emergency_phone2 },
+        { contact: user.emergency_contact3, phone: user.emergency_phone3 },
+      ],
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -398,7 +412,7 @@ app.post("/api/demo/critical", authenticateToken, async (req, res) => {
         demoData.context_tag,
         location_latitude || null,
         location_longitude || null,
-        location_address || "Demo Location - Critical Emergency",
+        location_address || "AMA Computer College-legazpi",
       ]
     );
     res.json({ message: "Critical demo data generated", data: demoData });
@@ -494,6 +508,35 @@ app.post("/api/demo/normal", authenticateToken, async (req, res) => {
   }
 });
 
+const MS_PER_SECOND = 5000;
+setInterval(async () => {
+  try {
+    const now = new Date();
+    const [criticalUsers] = await pool.execute(`
+      SELECT u.id as user_id, u.name, u.email, 
+             u.emergency_contact1, u.emergency_phone1,
+             u.emergency_contact2, u.emergency_phone2,
+             u.emergency_contact3, u.emergency_phone3,
+             hd.id as health_data_id, hd.status, hd.recorded_at
+      FROM users u
+      INNER JOIN (
+        SELECT h1.* FROM health_data h1
+        INNER JOIN (
+          SELECT user_id, MAX(recorded_at) as max_time
+          FROM health_data
+          GROUP BY user_id
+        ) h2 ON h1.user_id = h2.user_id AND h1.recorded_at = h2.max_time
+      ) hd ON u.id = hd.user_id
+      WHERE hd.status = 'critical'
+    `);
+    const userIds = criticalUsers.map(u => u.user_id);
+    console.log(`Critical data found: ${criticalUsers.length} - time checked: ${now.toISOString()}`);
+    console.log(`Critical Users: [${userIds.join(",")}]`);
+  } catch (err) {
+    console.error('Critical check error:', err);
+  }
+}, MS_PER_SECOND);
+
 app.get("/api/critical-users", async (req, res) => {
   try {
     // Get latest health_data for each user
@@ -501,8 +544,12 @@ app.get("/api/critical-users", async (req, res) => {
       SELECT u.id as user_id,
              u.name,
              u.email,
-             u.emergency_contact,
-             u.emergency_phone,
+             u.emergency_contact1,
+             u.emergency_phone1,
+             u.emergency_contact2,
+             u.emergency_phone2,
+             u.emergency_contact3,
+             u.emergency_phone3,
              hd.id as health_data_id,
              hd.heart_rate,
              CONCAT(hd.systolic, '/', hd.diastolic) as blood_pressure,
@@ -522,12 +569,12 @@ app.get("/api/critical-users", async (req, res) => {
         ) h2 ON h1.user_id = h2.user_id AND h1.recorded_at = h2.max_time
       ) hd ON u.id = hd.user_id
       WHERE hd.status = 'critical'
-        AND u.emergency_phone IS NOT NULL
-        AND u.emergency_phone != ''
       ORDER BY hd.recorded_at DESC
     `);
+    const userIds = criticalUsers.map(u => u.user_id);
     res.json({
       users: criticalUsers,
+      user_ids: userIds,
       count: criticalUsers.length,
       timestamp: new Date().toISOString(),
     });
@@ -548,7 +595,7 @@ app.post("/api/sms-status", async (req, res) => {
     } = req.body;
     await pool.execute(
       "INSERT INTO sms_log (user_id, alert_id, phone_number, status, sent_at) VALUES (?, ?, ?, ?, FROM_UNIXTIME(?))",
-      [user_id, alert_id, phone_number, status, timestamp / 1000]
+      [user_id, alert_id, phone_number, status, timestamp / 5000]
     );
     res.json({ message: "SMS status recorded successfully" });
   } catch (error) {
@@ -561,7 +608,7 @@ app.get("/api/profile", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId,
       [users] = await pool.execute(
-        "SELECT id, email, name, emergency_contact, emergency_phone, created_at FROM users WHERE id = ?",
+        "SELECT id, email, name, emergency_contact1, emergency_phone1, emergency_contact2, emergency_phone2, emergency_contact3, emergency_phone3, created_at FROM users WHERE id = ?",
         [userId]
       );
     if (users.length === 0)
@@ -577,13 +624,20 @@ app.put("/api/profile", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
     const sanitize = v => v === undefined ? null : v;
-    const { name, emergency_contact, emergency_phone } = req.body;
-    const [result] = await pool.execute(
-      "UPDATE users SET name = ?, emergency_contact = ?, emergency_phone = ? WHERE id = ?",
+    const { name, emergency_contact1, emergency_phone1, emergency_contact2, emergency_phone2, emergency_contact3, emergency_phone3 } = req.body;
+    if (!name || !emergency_contact1 || !emergency_phone1 || !emergency_contact2 || !emergency_phone2) {
+      return res.status(400).json({ error: "Name and at least 2 emergency contacts are required" });
+    }
+    await pool.execute(
+      "UPDATE users SET name = ?, emergency_contact1 = ?, emergency_phone1 = ?, emergency_contact2 = ?, emergency_phone2 = ?, emergency_contact3 = ?, emergency_phone3 = ? WHERE id = ?",
       [
         sanitize(name),
-        sanitize(emergency_contact),
-        sanitize(emergency_phone),
+        sanitize(emergency_contact1),
+        sanitize(emergency_phone1),
+        sanitize(emergency_contact2),
+        sanitize(emergency_phone2),
+        sanitize(emergency_contact3),
+        sanitize(emergency_phone3),
         userId
       ]
     );
@@ -634,7 +688,7 @@ app.get("/api/admin/users", async (req, res) => {
   try {
     console.log('🔍 Admin fetching all users with health history...');
     const [users] = await pool.execute(
-      "SELECT id, name, email, emergency_contact, emergency_phone, created_at FROM users ORDER BY created_at DESC"
+      "SELECT id, name, email, emergency_contact1, emergency_phone1, emergency_contact2, emergency_phone2, emergency_contact3, emergency_phone3, created_at FROM users ORDER BY created_at DESC"
     );
     const usersWithHealth = await Promise.all(
       users.map(async (user) => {
@@ -699,24 +753,6 @@ app.get("/api/admin/user/:userId/alerts", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-const MS_PER_HOUR = 60 * 60 * 1000;
-setInterval(async () => {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().slice(0, 10);
-    const [result] = await pool.execute(
-      "DELETE FROM health_data WHERE DATE(recorded_at) < ?",
-      [todayStr]
-    );
-    if (result.affectedRows > 0) {
-      console.log(`🧹 Deleted ${result.affectedRows} old health_data rows (not from today)`);
-    }
-  } catch (err) {
-    console.error('Auto-cleanup error:', err);
-  }
-}, MS_PER_HOUR); 
 
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);

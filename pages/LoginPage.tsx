@@ -30,7 +30,6 @@ const LoginPage: React.FC = () => {
     setError('');
     setIsLoading(true);
 
-    // Shortcut for sample admin credentials
     if (userType === 'admin' && email === 'admin@admin.com' && password === 'admin12345') {
       localStorage.setItem('authToken', '1234');
       localStorage.setItem('userEmail', 'admin');
@@ -232,21 +231,6 @@ const LoginPage: React.FC = () => {
             <Link to="/" className="text-sm font-medium text-brand-primary hover:text-brand-secondary">
               &larr; Back to Homepage
             </Link>
-          </div>
-          
-          {/* Enhanced Debug info */}
-          <div className="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600">
-            <p><strong>🔧 Debug Info:</strong></p>
-            <p>API URL: http://localhost:5000/api/login</p>
-            <p>User Type: {userType}</p>
-            <p>Is Admin Logged In: {isAdminLoggedIn ? 'Yes' : 'No'}</p>
-            <p>Is User Logged In: {isUserLoggedIn ? 'Yes' : 'No'}</p>
-            <p>Current Role: {userRole || 'None'}</p>
-            <p>Target Route: {userType === 'admin' ? '/admin/dashboard' : '/user/dashboard'}</p>
-            <p>Test Credentials: test@test.com / test123</p>
-            <p>Admin Credentials: admin / admin</p>
-            <p>Make sure server.js is running: npm run server</p>
-            <p>Check browser console for detailed logs</p>
           </div>
         </div>
         

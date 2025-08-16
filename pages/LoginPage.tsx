@@ -224,7 +224,7 @@ const LoginPage: React.FC = () => {
           </form>
           
           <div className="text-center mt-6 space-y-2">
-            <Link to="/register" className="text-sm font-medium text-brand-primary hover:text-brand-secondary">
+            <Link to="http://localhost:80/register.php" className="text-sm font-medium text-brand-primary hover:text-brand-secondary">
               Don't have an account? Sign up
             </Link>
             <br />

@@ -68,14 +68,13 @@ const RegistrationPage: React.FC = () => {
       return false;
     }
     
-    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    if (!phoneRegex.test(formData.emergency_phone1.replace(/[\s\-\(\)]/g, '')) || !phoneRegex.test(formData.emergency_phone2.replace(/[\s\-\(\)]/g, ''))) {
-      setError('Please enter valid phone numbers for the first two emergency contacts');
+    const phoneRegex = /^(\+63|0)?9\d{9}$/;
+    if (!phoneRegex.test(formData.emergency_phone1.replace(/[-\s\(\)]/g, '')) || !phoneRegex.test(formData.emergency_phone2.replace(/[-\s\(\)]/g, ''))) {
+      setError('Please enter valid Philippine mobile numbers for the first two emergency contacts');
       return false;
     }
-    
-    if (formData.emergency_phone3 && !phoneRegex.test(formData.emergency_phone3.replace(/[\s\-\(\)]/g, ''))) {
-      setError('Please enter a valid phone number for the third emergency contact');
+    if (formData.emergency_phone3 && !phoneRegex.test(formData.emergency_phone3.replace(/[-\s\(\)]/g, ''))) {
+      setError('Please enter a valid Philippine mobile number for the third emergency contact');
       return false;
     }
     

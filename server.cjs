@@ -219,28 +219,44 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
+// Function to randomly pick lat/long from your list
+const generate_long_and_lat = () => {
+  const list = [
+    "13.138406459981834, 123.73948170993107",
+    "13.138122224099186, 123.73878232768773",
+    "13.137810434258194, 123.73849204011117",
+    "13.138118066903921, 123.73931167562142",
+    "13.137436285926254, 123.73925191053213",
+    "13.138591986710194, 123.73863291497028",
+  ];
+  const random = list[Math.floor(Math.random() * list.length)];
+  const [lat, lng] = random.split(",").map((v) => v.trim());
+  return { latitude: lat, longitude: lng };
+};
+
+const DEFAULT_ADDRESS =
+  "4PQQ+8GM, AMA Bldg., Rizal St., Rizal Avenue, Old Albay District, Legazpi City, Albay";
 app.post("/api/update_health", authenticateToken, async (req, res) => {
   try {
     const {
-        heart_rate: heart_rate,
-        systolic: systolic,
-        diastolic: diastolic,
-        spo2: spo2,
-        temperature: temperature,
-        status: status,
-        activity: activity,
-        context_tag: context_tag,
-        location_latitude: location_latitude,
-        location_longitude: location_longitude,
-        location_address: location_address,
-      } = req.body,
-      userId = req.user.userId;
-    if (!(heart_rate && systolic && diastolic && spo2 && temperature))
-      return res
-        .status(400)
-        .json({ error: "All health metrics are required" });
+      heart_rate,
+      systolic,
+      diastolic,
+      spo2,
+      temperature,
+      status,
+      activity,
+      context_tag,
+    } = req.body;
+    const userId = req.user.userId;
+    if (!(heart_rate && systolic && diastolic && spo2 && temperature)) {
+      return res.status(400).json({ error: "All health metrics are required" });
+    }
+    const { latitude, longitude } = generate_long_and_lat();
     const [result] = await pool.execute(
-      "INSERT INTO health_data (user_id, heart_rate, systolic, diastolic, spo2, temperature, status, activity, context_tag, location_latitude, location_longitude, location_address, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+      `INSERT INTO health_data 
+      (user_id, heart_rate, systolic, diastolic, spo2, temperature, status, activity, context_tag, location_latitude, location_longitude, location_address, recorded_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         userId,
         heart_rate,
@@ -251,26 +267,33 @@ app.post("/api/update_health", authenticateToken, async (req, res) => {
         status || "normal",
         activity || null,
         context_tag || null,
-        location_latitude || null,
-        location_longitude || null,
-        location_address || null,
+        latitude,
+        longitude,
+        DEFAULT_ADDRESS, 
       ]
     );
+
     if (status === "critical") {
       await pool.execute(
-        "INSERT INTO alerts (user_id, alert_type, message, severity, location_latitude, location_longitude, location_address, created_at) VALUES (?, 'health_critical', ?, 'high', ?, ?, ?, NOW())",
+        `INSERT INTO alerts 
+        (user_id, alert_type, message, severity, location_latitude, location_longitude, location_address, created_at) 
+        VALUES (?, 'health_critical', ?, 'high', ?, ?, ?, NOW())`,
         [
           userId,
           `Critical health values detected: HR=${heart_rate}, BP=${systolic}/${diastolic}, SpO2=${spo2}%, Temp=${temperature}°F`,
-          location_latitude || null,
-          location_longitude || null,
-          location_address || null,
+          latitude,
+          longitude,
+          DEFAULT_ADDRESS, 
         ]
       );
     }
+
     res.json({
       message: "Health data updated successfully",
       data_id: result.insertId,
+      latitude,
+      longitude,
+      location_address: DEFAULT_ADDRESS,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -278,6 +301,7 @@ app.post("/api/update_health", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 app.get("/api/health_data", authenticateToken, async (req, res) => {
   try {
